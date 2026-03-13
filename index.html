@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Chat Parser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header / Upload Zone -->
+        <header class="header">
+            <div id="drop-zone" class="drop-zone">
+                <span class="drop-text">Click here to upload a file or drag and drop it onto the dashed region
+                    (supported formats: <code>txt</code>, <code>zip</code>)</span>
+            </div>
+            <div class="header-actions">
+                <span class="or-text">OR</span>
+                <button id="demo-btn" class="demo-btn">Download example chat</button>
+            </div>
+        </header>
+
+        <!-- Chat Area -->
+        <main class="chat-area">
+            <div class="message-status">
+                <span id="message-count-badge" class="badge">Showing 0 messages</span>
+            </div>
+
+            <div id="chat-container" class="chat-container">
+                <!-- Messages will be injected here -->
+            </div>
+        </main>
+
+        <!-- Floating Action Button -->
+        <button id="fab-menu" class="fab-menu" aria-label="Menu">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Templates -->
+    <template id="message-template-left">
+        <div class="message-wrapper left">
+            <div class="message bubble-left">
+                <div class="sender"></div>
+                <div class="content"></div>
+                <div class="timestamp"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="message-template-right">
+        <div class="message-wrapper right">
+            <div class="message bubble-right">
+                <div class="sender"></div>
+                <div class="content"></div>
+                <div class="timestamp"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="message-template-system">
+        <div class="message-wrapper system">
+            <div class="message bubble-system">
+                <div class="content"></div>
+            </div>
+        </div>
+    </template>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
