@@ -88,9 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const demoText = `[12/08/20, 10:02:00 PM] Sooryaprakash: Hello
 [12/08/20, 10:03:00 PM] Mom: This message was deleted
 [12/08/20, 10:03:15 PM] Mom: 🙏👍
-[12/08/20, 10:03:25 PM] Sooryaprakash: Ennachi
+[12/08/20, 10:03:25 PM] Soor: Ennachi
 [12/08/20, 10:03:30 PM] Mom: Maathi vanthirthu 🤣🤣🤣
-[12/08/20, 10:03:35 PM] Sooryaprakash: <Media omitted>
+[12/08/20, 10:03:35 PM] Soor: <Media omitted>
 [12/08/20, 10:03:45 PM] Mom: N.a. onnu type pana athu onnu pothu
 [13/08/20, 10:03:45 PM] Mom: N.a. onnu type pana athu onnu pothu`;
         processChatText(demoText);
@@ -99,7 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Chat Parsing and Rendering Logic
     const senderColors = new Map();
     let colorIndex = 1;
-    let mainUser = null; // We'll try to guess who "me" is to put on the right side
+
+    // Chunking state
+    let globalMessages = [];
+    let currentRenderIndex = 0;
+    const CHUNK_SIZE = 100;
+    let userRight = "Sooryaprakash";
+    let lastRenderedDate = null;
+    let sentinelObserver = null;
 
     function getSenderColorClass(sender) {
         if (!senderColors.has(sender)) {
@@ -113,6 +120,15 @@ document.addEventListener('DOMContentLoaded', () => {
         chatContainer.innerHTML = '';
         senderColors.clear();
         colorIndex = 1;
+
+        // Reset states
+        globalMessages = [];
+        currentRenderIndex = 0;
+        lastRenderedDate = null;
+        if (sentinelObserver) {
+            sentinelObserver.disconnect();
+            sentinelObserver = null;
+        }
 
         const lines = text.split('\n');
         const messages = [];
@@ -157,31 +173,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (currentMessage) messages.push(currentMessage);
 
-        renderMessages(messages);
-    }
+        globalMessages = messages;
 
-    function renderMessages(messages) {
-        badgeCount.textContent = `Showing all ${messages.length} messages`;
-
-        if (messages.length === 0) return;
-
-        // Guess main user (first sender or most frequent sender often goes right but standard is right = me, left = them)
-        // Usually, in WhatsApp exports, the user exporting is 'right'.
-        // Let's assume the first sender is right for demo purposes, or we collect all senders and the user can swap.
-        // For accurate UI, we need 2 sides. Let's make "Sooryaprakash" (from demo) standard right if exists, or randomly pick one.
         const senders = new Set(messages.filter(m => !m.isSystem).map(m => m.sender));
-        let userRight = "Sooryaprakash"; // Fallback string
-        if (!senders.has(userRight)) {
+        userRight = "Sooryaprakash"; // Fallback string
+        if (!senders.has(userRight) && senders.size > 0) {
             userRight = Array.from(senders)[0];
         }
+
+        renderNextChunk();
+    }
+
+    function renderNextChunk() {
+        if (currentRenderIndex >= globalMessages.length) return;
+
+        // Take chunk
+        const chunk = globalMessages.slice(currentRenderIndex, currentRenderIndex + CHUNK_SIZE);
+        currentRenderIndex += chunk.length;
+
+        badgeCount.textContent = `Showing ${currentRenderIndex} of ${globalMessages.length} messages`;
 
         const templateLeft = document.getElementById('message-template-left').content;
         const templateRight = document.getElementById('message-template-right').content;
         const templateSystem = document.getElementById('message-template-system').content;
 
-        let lastDate = null;
+        // Remove old sentinel if exists
+        const oldSentinel = document.getElementById('scroll-sentinel');
+        if (oldSentinel) oldSentinel.remove();
 
-        messages.forEach(msg => {
+        const fragment = document.createDocumentFragment();
+
+        chunk.forEach(msg => {
             let clone;
             let formattedDate = null;
             let formattedTime = msg.time;
@@ -200,15 +222,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     formattedTime = `${timeMatch[1]}:${timeMatch[2]} ${timeMatch[3] ? timeMatch[3].toUpperCase() : ''}`.trim();
                 }
 
-                if (formattedDate !== lastDate) {
+                if (formattedDate !== lastRenderedDate) {
                     const dateWrapper = document.createElement('div');
                     dateWrapper.className = 'message-wrapper system';
                     const dateBadge = document.createElement('div');
                     dateBadge.className = 'badge';
                     dateBadge.textContent = formattedDate;
                     dateWrapper.appendChild(dateBadge);
-                    chatContainer.appendChild(dateWrapper);
-                    lastDate = formattedDate;
+                    fragment.appendChild(dateWrapper);
+                    lastRenderedDate = formattedDate;
                 }
             }
 
@@ -232,10 +254,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 clone.querySelector('.timestamp').textContent = displayTime;
             }
-            chatContainer.appendChild(clone);
+            fragment.appendChild(clone);
         });
 
-        // Scroll to bottom
-        window.scrollTo(0, document.body.scrollHeight);
+        // Add new sentinel to observe for infinite scroll
+        if (currentRenderIndex < globalMessages.length) {
+            const sentinel = document.createElement('div');
+            sentinel.id = 'scroll-sentinel';
+            sentinel.style.height = '1px';
+            fragment.appendChild(sentinel);
+
+            chatContainer.appendChild(fragment);
+
+            if (!sentinelObserver) {
+                sentinelObserver = new IntersectionObserver((entries) => {
+                    if (entries[0].isIntersecting) {
+                        requestAnimationFrame(() => renderNextChunk());
+                    }
+                }, { root: document.querySelector('.chat-area'), rootMargin: '200px' });
+            }
+            sentinelObserver.observe(sentinel);
+        } else {
+            chatContainer.appendChild(fragment);
+        }
+
+        // Only scroll to top for the first chunk
+        if (currentRenderIndex === chunk.length) {
+            const chatArea = document.querySelector('.chat-area');
+            if (chatArea) chatArea.scrollTop = 0;
+        }
     }
 });
